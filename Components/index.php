@@ -239,6 +239,44 @@
                 border:none;
                 margin:40px 0px 0px 250px;
             }
+            a{
+                display: inline-block;
+                text-decoration: none;
+                color:#0f77ff;
+                padding: 10px 20px;
+                border: thin solid #d4d4d4;
+                transition: all 0.3s;
+                font-size: 18px;
+                margin:0px 10px 0px 10px;
+                border-radius:50px;
+            }
+                
+            a.active{
+                background-color:#0f77ff;
+                color: #fff;
+            }
+            .page-info{
+                margin-top: 90px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+                
+            .pagination{
+                margin-top: 20px;
+            }
+            .content p{
+                margin-bottom: 15px;
+            }
+            .page-numbers{
+                display: inline-block;
+            }
+            .page_no_view{
+                margin-left:15px;
+                color:#0f77ff
+            }
+            .timer{
+                color:#fff;
+            }
         </style>
         
     </head>
@@ -250,10 +288,15 @@
         $databse = 'tenet';
     
         $connection = mysqli_connect($host,$user,$password,$databse);
-
+        
+        if(isset($_GET['page-nr'])){
+            $id = $_GET['page-nr'];
+        }else{
+            $id=1;
+        }
        
     ?>
-    <body>
+    <body id="<?php echo $id ?>">
             <div class="side_menu">
                 <button class="logout-btn" onclick='logout()'><i class="log fa fa-sign-out" style="font-size:26px;color:#fff"></i></button>
                 <div class="nav_menu">
@@ -273,7 +316,8 @@
                     <div class="icon tablinks" style="display: none;" onclick="openTab(event, 'edit-tenant')">
                         <i class="navIcon fa fa-pencil"></i>
                         <h4 class="nav_menu_item">Edit Tenant</h4>
-                    </div>
+                    </div> <br><br>
+                    <h4 class="timer" id="timer"></h4>
                 </div>
             </div>
 
@@ -418,6 +462,7 @@
                             
                             <tbody>
                                 <?php
+                                    include "pagination.php";
                                     include "phpqrcode/qrlib.php";
 
                                     use PHPMailer\PHPMailer\PHPMailer;
@@ -433,11 +478,23 @@
                                     $updateSql = "UPDATE `tenant_data` SET `flag` = 0 WHERE `appoinment` < '$currentDate'";
                                     $connection->query($updateSql);
                                     
+                                    $start = 0;
+                                    $per_page = 5;
+
+                                    $records = $connection->query("SELECT * FROM `tenant_data`  WHERE `flag` = 1 ");
+                                    $no_of_rows = $records->num_rows;
+                                    $pages = ceil($no_of_rows/ $per_page);
+
+                                    if(isset($_GET['page-nr'])){
+                                        $page = $_GET['page-nr'] -1 ;
+                                        $start = ($page * $per_page) ;
+                                    }
                                     $filterValue = $_GET['tenantFilter'] ?? 1;
+
                                     if ($filterValue == 0) {
                                         $sql = "SELECT * FROM `tenant_data` WHERE `flag` = 0";
                                     } else {
-                                        $sql = "SELECT * FROM `tenant_data` WHERE `flag` = 1";
+                                        $sql = "SELECT * FROM `tenant_data`  WHERE `flag` = 1  LIMIT $start , $per_page " ;
                                     }
                                     
                                     $result = $connection->query($sql);
@@ -492,6 +549,61 @@
 
                             </tbody>
                         </table>
+                        <div class="page-info">
+                            <?php
+                                if(!isset($_GET['page-nr'])){
+                                    $page = 1;
+                                }else{
+                                    $page = $_GET['page-nr'];
+                                }
+                            ?>
+                           <h4 class="page_no_view"> Showing <?php echo $page ?> of <?php echo $pages ?> Pages <h4>
+                        </div>
+
+                        <div class="pagination">
+                            <a href="?page-nr=1">First</a>
+
+                            <?php
+                                if(isset($_GET['page-nr']) && $_GET['page-nr'] > 1){
+                                    ?>
+                                        <a href="?page-nr=<?php echo $_GET['page-nr'] - 1 ?>">Previous</a>
+                                    <?php
+                                }else{
+                                    ?>
+                                      <a >Previous</a>
+                                    <?php
+                                }
+                            ?>
+                            
+
+                            <div class="page-numbers">
+                                <?php
+                                    for($counter=1; $counter <= $pages; $counter++){
+                                        ?>
+                                            <a href="?page-nr=<?php echo $counter ?>"><?php echo $counter ?></a>
+                                        <?php
+                                    }
+                                ?>
+                            </div>
+                            <?php
+                                if(!isset($_GET['page-nr'])){
+                                    ?>
+                                        <a href="?page-nr=2">Next</a>
+                                    <?php
+                                }else{
+                                    if($_GET['page-nr'] >= $pages){
+                                        ?>
+                                            <a>Next</a>
+                                        <?php
+                                    }else{
+                                        ?>
+                                         <a href="?page-nr=<?php echo $_GET['page-nr'] + 1 ?>">Next</a>
+                                        <?php
+                                    }
+                                }
+                            ?>
+                            <a href="?page-nr=<?php echo $pages ?>">Last</a>
+                        </div>
                     </div>
                 </div>
 
@@ -819,52 +931,56 @@
                     xhr.open('POST', 'renewTenant.php', true);
                     xhr.send(form);
                 }
-                var inactivityTime = 90000;
-                    var logoutTimer;
 
-                    function logout() {
-                        window.location.href = './logout.php'; 
+                var inactivityTime = 30000; // Adjust the inactivity time in milliseconds (e.g., 30000 for 30 seconds)
+                var thresholdToShowTimer = 10; // Adjust the threshold in seconds to show the timer
+
+                var logoutTimer;
+
+                function resetTimer() {
+                    clearTimeout(logoutTimer);
+
+                    var remainingTime = inactivityTime / 1000;
+
+                    logoutTimer = setInterval(function() {
+                    remainingTime--;
+
+                    if (remainingTime <= thresholdToShowTimer) {
+                        displayRemainingTime(remainingTime);
                     }
 
-                    function displayRemainingTime(remainingTime) {
-                        var timerElement = document.getElementById('timer');
-                        
-                        if (remainingTime <= 10 && remainingTime >= 0) {
-                            timerElement.style.display = 'block';
-                            timerElement.innerHTML = "Remaining time: " + remainingTime + " seconds";
-                        } else {
-                            timerElement.style.display = 'none';
-                        }
+                    if (remainingTime <= 0) {
+                        logout();
                     }
+                    }, 1000);
+                }
 
-                    function resetTimer() {
-                        clearTimeout(logoutTimer);
-                        var remainingTime = inactivityTime / 1000;
+                function displayRemainingTime(remainingTime) {
+                    var timerElement = document.getElementById('timer');
+                    timerElement.style.display = 'block'; // Show the timer
+                    timerElement.textContent = 'Time remaining: ' + remainingTime + ' seconds';
+                }
 
-                        logoutTimer = setInterval(function() {
-                            remainingTime--;
-                            if (remainingTime <= 0) {
-                                logout();
-                            } else {
-                                displayRemainingTime(remainingTime);
-                            }
-                        }, 1000);
+                function logout() {
+                    window.location.href = './logout.php'; 
+                }
 
-                        document.addEventListener('mousemove', function() {
-                            var timerElement = document.getElementById('timer');
-                            timerElement.style.display = 'none';
-                            resetTimer();
-                        });
-
-                        document.addEventListener('keypress', function() {
-                            var timerElement = document.getElementById('timer');
-                            timerElement.style.display = 'none';
-                            resetTimer();
-                        });
-                    }
-
+                function handleUserActivity() {
                     resetTimer();
+                }
 
+                document.addEventListener('mousemove', handleUserActivity);
+                document.addEventListener('keypress', handleUserActivity);
+
+                resetTimer();
+
+                //show active paginations
+                let links = document.querySelectorAll('.page-numbers > a');
+                let bodyId = parseInt(document.body.id) - 1;
+
+                links[bodyId].classList.add('active');
+
+        
             </script>
     </body>
 </html>
