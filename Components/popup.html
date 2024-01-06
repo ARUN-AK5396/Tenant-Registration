@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email Sender</title>
+    <script>
+        function sendQrEmail() {
+            var email = document.getElementById('email').value;
+            var tenantId = getUrlParameter('tenantId');
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        alert("Email sent successfully!");
+                        window.close();
+                    } else {
+                        alert("Error sending email! Status: " + xhr.status + ", Response: " + xhr.responseText);
+                    }
+                }
+            };
+
+            var data = new FormData();
+            data.append('email', email);
+            data.append('tenantId', tenantId);
+
+            xhr.open('POST', 'mailingQr.php');
+            xhr.send(data);
+        }
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+    </script>
+</head>
+<body>
+    <form>
+        <label for="email">Enter Email:</label>
+        <input type="email" id="email" name="email">
+        <button type="button" onclick="sendQrEmail()">Send Email</button>
+    </form>
+</body>
+</html>
